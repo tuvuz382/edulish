@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
 // PUT /api/admin/classes/[id]
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { name, level, room, teacher_id } = await req.json();
 
     const connection = await pool.getConnection();
@@ -12,15 +13,15 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
       await connection.query(
         "UPDATE classes SET name = ?, level = ?, room = ? WHERE id = ?",
-        [name, level, room, params.id]
+        [name, level, room, id]
       );
 
       // Cập nhật giáo viên: Xóa giáo viên cũ và thêm giáo viên mới (chỉ 1 giáo viên phụ trách)
-      await connection.query("DELETE FROM class_teachers WHERE class_id = ?", [params.id]);
+      await connection.query("DELETE FROM class_teachers WHERE class_id = ?", [id]);
       if (teacher_id) {
         await connection.query(
           "INSERT INTO class_teachers (class_id, user_id) VALUES (?, ?)",
-          [params.id, teacher_id]
+          [id, teacher_id]
         );
       }
 
@@ -39,9 +40,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 // DELETE /api/admin/classes/[id]
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await pool.query("DELETE FROM classes WHERE id = ?", [params.id]);
+    const { id } = await params;
+    await pool.query("DELETE FROM classes WHERE id = ?", [id]);
     return NextResponse.json({ success: true, message: "Xóa lớp học thành công" });
   } catch (error) {
     console.error("Error deleting class:", error);
