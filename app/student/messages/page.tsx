@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 interface Contact {
@@ -19,7 +19,7 @@ interface Message {
   is_read: number;
 }
 
-export default function StudentMessagesPage() {
+function StudentMessagesContent() {
   const searchParams = useSearchParams();
   const toId = searchParams.get("to");
 
@@ -233,5 +233,13 @@ export default function StudentMessagesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function StudentMessagesPage() {
+  return (
+    <Suspense fallback={<div className="flex h-[calc(100vh-4rem)] items-center justify-center text-slate-400">Đang tải...</div>}>
+      <StudentMessagesContent />
+    </Suspense>
   );
 }

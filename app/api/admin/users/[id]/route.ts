@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
 // PUT /api/admin/users/[id]
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { name, email, role, is_active } = await req.json();
 
     await pool.query(
       "UPDATE users SET name = ?, email = ?, role = ?, is_active = ? WHERE id = ?",
-      [name, email, role, is_active, params.id]
+      [name, email, role, is_active, id]
     );
 
     return NextResponse.json({ success: true, message: "Cập nhật thành công" });
@@ -19,9 +20,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 // DELETE /api/admin/users/[id]
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await pool.query("DELETE FROM users WHERE id = ?", [params.id]);
+    const { id } = await params;
+    await pool.query("DELETE FROM users WHERE id = ?", [id]);
     return NextResponse.json({ success: true, message: "Xóa người dùng thành công" });
   } catch (error) {
     console.error("Error deleting user:", error);
