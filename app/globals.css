@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter, "Inter", system-ui, sans-serif);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter, "Inter", system-ui, sans-serif);
+}
+
+/* ── Custom Scrollbar ── */
+* { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Keyframe Animations ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0);     }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+
+.animate-fade-in-up  { animation: fadeInUp    0.35s ease both; }
+.animate-fade-in     { animation: fadeIn      0.25s ease both; }
+.animate-slide-left  { animation: slideInLeft 0.3s  ease both; }
+.animate-scale-in    { animation: scaleIn     0.2s  ease both; }
+
+.delay-75  { animation-delay: 75ms;  }
+.delay-150 { animation-delay: 150ms; }
+.delay-225 { animation-delay: 225ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-375 { animation-delay: 375ms; }
