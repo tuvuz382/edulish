@@ -16,6 +16,7 @@ interface DashboardData {
 export default function StudentDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -24,9 +25,12 @@ export default function StudentDashboard() {
         const json = await res.json();
         if (json.success) {
           setData(json.user);
+        } else {
+          setError(json.message || "Không thể tải dữ liệu.");
         }
       } catch (err) {
         console.error("Lỗi lấy dữ liệu dashboard:", err);
+        setError("Lỗi kết nối máy chủ.");
       } finally {
         setLoading(false);
       }
@@ -37,15 +41,26 @@ export default function StudentDashboard() {
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center p-4">
-        <p className="text-slate-500 font-medium">Đang tải bảng điều khiển...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+          <p className="text-slate-500 font-medium italic">Đang tải bảng điều khiển...</p>
+        </div>
       </div>
     );
   }
 
-  if (!data) {
+  if (error || !data) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center p-4">
-        <p className="text-slate-500">Không thể tải dữ liệu. Vui lòng thử lại.</p>
+      <div className="flex min-h-[50vh] flex-col items-center justify-center p-4 text-center">
+        <div className="mb-4 text-4xl">⚠️</div>
+        <h3 className="text-lg font-bold text-slate-800">Ối! Đã có lỗi xảy ra</h3>
+        <p className="mt-1 text-slate-500 max-w-md">{error || "Không thể tải dữ liệu. Vui lòng thử lại sau."}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-6 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-blue-700 transition-all"
+        >
+          Thử tải lại trang
+        </button>
       </div>
     );
   }
