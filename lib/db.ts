@@ -9,11 +9,11 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
 
-  // BẮT BUỘC: TiDB Cloud yêu cầu SSL. Nếu thiếu phần này sẽ bị lỗi 500.
-  ssl: {
+  // Chỉ dùng SSL nếu không phải là localhost (TiDB Cloud yêu cầu SSL, XAMPP thì không)
+  ssl: process.env.DB_HOST !== 'localhost' && process.env.DB_HOST !== '127.0.0.1' ? {
     minVersion: 'TLSv1.2',
     rejectUnauthorized: false
-  },
+  } : undefined,
 
   connectionLimit: 10,
   waitForConnections: true,
