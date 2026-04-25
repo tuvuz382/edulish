@@ -8,6 +8,7 @@ interface Contact {
   name: string;
   role: string;
   email: string;
+  unread_count?: number;
 }
 
 interface Message {
@@ -36,20 +37,24 @@ function StudentMessagesContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Lấy danh sách liên hệ (Giáo viên)
+  // Lấy danh sách liên hệ (Giáo viên + Những người đã nhắn tin)
+  const fetchContacts = async () => {
+    try {
+      const res = await fetch("/api/messages/contacts");
+      const data = await res.json();
+      if (data.success) setContacts(data.contacts);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchContacts = async () => {
-      try {
-        const res = await fetch("/api/messages/contacts");
-        const data = await res.json();
-        if (data.success) setContacts(data.contacts);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingContacts(false);
-      }
-    };
     fetchContacts();
+    // Refresh danh sách liên hệ mỗi 5s để cập nhật số tin chưa đọc
+    const interval = setInterval(fetchContacts, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   // Lấy lịch sử tin nhắn khi chọn người nhận
@@ -61,7 +66,11 @@ function StudentMessagesContent() {
       try {
         const res = await fetch(`/api/messages?withUserId=${activeId}`);
         const data = await res.json();
-        if (data.success) setMessages(data.messages);
+        if (data.success) {
+          setMessages(data.messages);
+          // Cập nhật lại số tin chưa đọc của người này về 0 ngay trên UI
+          setContacts(prev => prev.map(c => c.id === activeId ? { ...c, unread_count: 0 } : c));
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -72,8 +81,8 @@ function StudentMessagesContent() {
 
     fetchMessages();
     
-    // Polling đơn giản mỗi 5 giây để cập nhật tin nhắn mới
-    const interval = setInterval(fetchMessages, 5000);
+    // Polling đơn giản mỗi 3 giây để cập nhật tin nhắn mới
+    const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
   }, [activeId]);
 
@@ -98,13 +107,14 @@ function StudentMessagesContent() {
         // Cập nhật local messages để hiện ngay lập tức
         const newMessage: Message = {
           id: data.messageId,
-          sender_id: 0, // Sẽ được fetch lại đúng, tạm thời để 0 (hoặc lấy từ context user nếu có)
+          sender_id: 0, // Sẽ được fetch lại đúng, tạm thời để 0
           receiver_id: activeId,
           content,
           created_at: new Date().toISOString(),
           is_read: 0
         };
         setMessages(prev => [...prev, newMessage]);
+        fetchContacts(); // Cập nhật lại list liên hệ
       }
     } catch (err) {
       console.error(err);
@@ -118,14 +128,14 @@ function StudentMessagesContent() {
       {/* ── Contact list ── */}
       <aside className={`flex w-full flex-col border-r border-slate-200 bg-white sm:w-72 lg:w-80 flex-shrink-0 ${activeId ? "hidden sm:flex" : "flex"}`}>
         <div className="border-b border-slate-200 p-4">
-          <h2 className="font-bold text-slate-800">Tin nhắn hỗ trợ 💬</h2>
-          <p className="text-xs text-slate-500 mt-1">Trao đổi trực tiếp với giáo viên</p>
+          <h2 className="font-bold text-slate-800">Tin nhắn 💬</h2>
+          <p className="text-xs text-slate-500 mt-1">Trao đổi trực tiếp với giáo viên / bạn học</p>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {loadingContacts ? (
+          {loadingContacts && contacts.length === 0 ? (
             <div className="p-4 text-center text-sm text-slate-400">Đang tải danh sách...</div>
           ) : contacts.length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-400">Không tìm thấy giáo viên liên quan.</div>
+            <div className="p-8 text-center text-sm text-slate-400">Không có liên hệ nào.</div>
           ) : (
             contacts.map((c) => (
               <button
@@ -138,9 +148,18 @@ function StudentMessagesContent() {
                 <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-600">
                   {c.name.charAt(0)}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-800">{c.name}</p>
-                  <p className="truncate text-[10px] uppercase font-bold text-slate-400 tracking-wider">{c.role}</p>
+                <div className="flex-1 min-w-0 flex items-center justify-between">
+                  <div>
+                    <p className={`truncate text-sm ${c.unread_count ? 'font-extrabold text-slate-900' : 'font-semibold text-slate-800'}`}>{c.name}</p>
+                    <p className="truncate text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      {c.role === 'teacher' ? 'Giáo viên' : 'Học viên'}
+                    </p>
+                  </div>
+                  {c.unread_count ? (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                      {c.unread_count}
+                    </span>
+                  ) : null}
                 </div>
               </button>
             ))

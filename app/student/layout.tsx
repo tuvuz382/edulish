@@ -6,6 +6,7 @@ const studentNav: NavItem[] = [
   { href: "/student/random-test",     icon: "🎲", label: "Luyện tập ngẫu nhiên" },
   { href: "/student/dictionary",      icon: "📖", label: "Từ điển"               },
   { href: "/student/class-info",      icon: "🏫", label: "Thông tin lớp"         },
+  { href: "/student/materials",       icon: "📚", label: "Tài liệu học tập"      },
   { href: "/student/messages",        icon: "💬", label: "Tin nhắn", badge: 2    },
   { href: "/student/profile",         icon: "👤", label: "Hồ sơ cá nhân"         },
 ];

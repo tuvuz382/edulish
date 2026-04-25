@@ -11,15 +11,26 @@ interface ClassItem {
   student_count: number;
 }
 
-interface Teacher {
+interface User {
   id: number;
   name: string;
+  email: string;
+  role: string;
 }
 
 export default function AdminClassesPage() {
   const [showModal, setShowModal] = useState(false);
   const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [currentClass, setCurrentClass] = useState<ClassItem | null>(null);
+  const [members, setMembers] = useState<User[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [teachers, setTeachers] = useState<User[]>([]);
+  
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedRole, setSelectedRole] = useState("student");
+
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ name: "", room: "", level: "Beginner", teacher_id: "" });
   const [error, setError] = useState("");
@@ -28,7 +39,7 @@ export default function AdminClassesPage() {
 
   useEffect(() => {
     fetchClasses();
-    fetchTeachers();
+    fetchAllUsers();
   }, []);
 
   const fetchClasses = async () => {
@@ -46,15 +57,16 @@ export default function AdminClassesPage() {
     }
   };
 
-  const fetchTeachers = async () => {
+  const fetchAllUsers = async () => {
     try {
       const res = await fetch("/api/admin/users");
       const data = await res.json();
       if (data.success) {
+        setAllUsers(data.users);
         setTeachers(data.users.filter((u: any) => u.role === 'teacher'));
       }
     } catch (err) {
-      console.error("Lỗi khi tải giáo viên", err);
+      console.error("Lỗi khi tải users", err);
     }
   };
 
@@ -95,6 +107,63 @@ export default function AdminClassesPage() {
       }
     } catch (err) {
       alert("Lỗi khi xóa lớp học");
+    }
+  };
+
+  const fetchMembers = async (classId: number) => {
+    try {
+      const res = await fetch(`/api/admin/classes/${classId}/members`);
+      const data = await res.json();
+      if (data.success) {
+        setMembers(data.members);
+      }
+    } catch (err) {
+      console.error("Lỗi tải thành viên", err);
+    }
+  };
+
+  const handleOpenMembers = (c: ClassItem) => {
+    setCurrentClass(c);
+    fetchMembers(c.id);
+    setShowMemberModal(true);
+  };
+
+  const handleAddMember = async () => {
+    if (!currentClass || !selectedUserId) return;
+    try {
+      const res = await fetch(`/api/admin/classes/${currentClass.id}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: selectedUserId, role: selectedRole })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchMembers(currentClass.id);
+        fetchClasses(); 
+      } else {
+        alert(data.error);
+      }
+    } catch (e) {
+      alert("Lỗi thêm thành viên");
+    }
+  };
+
+  const handleRemoveMember = async (userId: number, role: string) => {
+    if (!currentClass) return;
+    if (!confirm("Xóa thành viên khỏi lớp?")) return;
+    try {
+      const res = await fetch(`/api/admin/classes/${currentClass.id}/members?user_id=${userId}&role=${role}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchMembers(currentClass.id);
+        fetchClasses();
+      } else {
+        alert(data.error);
+      }
+    } catch (e) {
+      alert("Lỗi xóa thành viên");
     }
   };
 
@@ -160,7 +229,8 @@ export default function AdminClassesPage() {
                       <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-700">{c.level}</span>
                     </td>
                     <td className="px-5 py-4 text-slate-500">{c.room}</td>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 space-x-3">
+                      <button onClick={() => handleOpenMembers(c)} className="text-blue-600 hover:text-blue-800 font-medium">Thành viên</button>
                       <button onClick={() => handleDelete(c.id)} className="text-red-500 hover:text-red-700 font-medium">Xóa</button>
                     </td>
                   </tr>
@@ -171,6 +241,7 @@ export default function AdminClassesPage() {
         </div>
       </div>
 
+      {/* Tạo lớp modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
           <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl animate-scale-in">
@@ -209,6 +280,78 @@ export default function AdminClassesPage() {
               <button onClick={() => setShowModal(false)}
                 className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Hủy</button>
               <button onClick={handleCreateClass} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-700">Tạo lớp</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quản lý Thành viên modal */}
+      {showMemberModal && currentClass && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl animate-scale-in">
+            <h3 className="mb-2 text-xl font-bold text-slate-800">Thành viên lớp: {currentClass.name}</h3>
+            
+            <div className="mb-6 flex gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <select 
+                value={selectedRole} 
+                onChange={e => setSelectedRole(e.target.value)}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none"
+              >
+                <option value="student">Học viên</option>
+                <option value="teacher">Giáo viên</option>
+              </select>
+              <select 
+                value={selectedUserId} 
+                onChange={e => setSelectedUserId(e.target.value)}
+                className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none"
+              >
+                <option value="">-- Chọn tài khoản --</option>
+                {allUsers.filter(u => u.role === selectedRole && !members.find(m => m.id === u.id)).map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                ))}
+              </select>
+              <button 
+                onClick={handleAddMember}
+                className="rounded-xl bg-violet-600 px-5 py-2 text-sm font-bold text-white hover:bg-violet-700"
+              >
+                Thêm
+              </button>
+            </div>
+
+            <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-left">
+                    <th className="p-3">Tên</th>
+                    <th className="p-3">Email</th>
+                    <th className="p-3">Vai trò</th>
+                    <th className="p-3 text-right">Xóa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.length === 0 ? (
+                    <tr><td colSpan={4} className="p-4 text-center text-slate-500">Chưa có thành viên nào</td></tr>
+                  ) : members.map(m => (
+                    <tr key={m.id} className="border-b border-slate-100">
+                      <td className="p-3 font-medium">{m.name}</td>
+                      <td className="p-3 text-slate-500">{m.email}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 text-xs rounded-full ${m.role === 'teacher' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                          {m.role === 'teacher' ? 'Giáo viên' : 'Học viên'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <button onClick={() => handleRemoveMember(m.id, m.role)} className="text-red-500 hover:text-red-700">Xóa</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button onClick={() => setShowMemberModal(false)}
+                className="rounded-xl bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-300">Đóng</button>
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ interface Contact {
   name: string;
   role: string;
   email: string;
+  unread_count?: number;
 }
 
 interface Message {
@@ -33,20 +34,24 @@ export default function TeacherMessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Lấy danh sách liên hệ (Học sinh)
+  // Lấy danh sách liên hệ
+  const fetchContacts = async () => {
+    try {
+      const res = await fetch("/api/messages/contacts");
+      const data = await res.json();
+      if (data.success) setContacts(data.contacts);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchContacts = async () => {
-      try {
-        const res = await fetch("/api/messages/contacts");
-        const data = await res.json();
-        if (data.success) setContacts(data.contacts);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingContacts(false);
-      }
-    };
     fetchContacts();
+    // Refresh danh sách liên hệ mỗi 5s để cập nhật số tin chưa đọc
+    const interval = setInterval(fetchContacts, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   // Lấy lịch sử tin nhắn
@@ -57,7 +62,10 @@ export default function TeacherMessagesPage() {
       try {
         const res = await fetch(`/api/messages?withUserId=${activeId}`);
         const data = await res.json();
-        if (data.success) setMessages(data.messages);
+        if (data.success) {
+          setMessages(data.messages);
+          setContacts(prev => prev.map(c => c.id === activeId ? { ...c, unread_count: 0 } : c));
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -66,7 +74,7 @@ export default function TeacherMessagesPage() {
     };
 
     fetchMessages();
-    const interval = setInterval(fetchMessages, 5000);
+    const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
   }, [activeId]);
 
@@ -95,6 +103,7 @@ export default function TeacherMessagesPage() {
           created_at: new Date().toISOString(),
           is_read: 0
         }]);
+        fetchContacts(); // Cập nhật lại list liên hệ
       }
     } catch (err) {
       console.error(err);
@@ -112,11 +121,11 @@ export default function TeacherMessagesPage() {
       {/* ── Sidebar ── */}
       <aside className={`flex w-full flex-col border-r border-slate-200 bg-white sm:w-72 lg:w-80 flex-shrink-0 ${activeId ? "hidden sm:flex" : "flex"}`}>
         <div className="border-b border-slate-200 p-4 bg-slate-50/50">
-          <h2 className="font-bold text-slate-800">Học sinh liên hệ 💬</h2>
+          <h2 className="font-bold text-slate-800">Tin nhắn liên hệ 💬</h2>
           <div className="mt-3 relative">
             <input 
               type="text" 
-              placeholder="Tìm học sinh…" 
+              placeholder="Tìm liên hệ…" 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400" 
@@ -124,10 +133,10 @@ export default function TeacherMessagesPage() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {loadingContacts ? (
+          {loadingContacts && contacts.length === 0 ? (
             <div className="p-4 text-center text-sm text-slate-400">Đang tải...</div>
           ) : filteredContacts.length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-400">Không tìm thấy học sinh nào.</div>
+            <div className="p-8 text-center text-sm text-slate-400">Không tìm thấy liên hệ nào.</div>
           ) : (
             filteredContacts.map((c) => (
               <button
@@ -140,9 +149,18 @@ export default function TeacherMessagesPage() {
                 <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-600">
                   {c.name.charAt(0)}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-800">{c.name}</p>
-                  <p className="truncate text-[10px] uppercase font-bold text-slate-400 tracking-wider">Học sinh</p>
+                <div className="flex-1 min-w-0 flex items-center justify-between">
+                  <div>
+                    <p className={`truncate text-sm ${c.unread_count ? 'font-extrabold text-slate-900' : 'font-semibold text-slate-800'}`}>{c.name}</p>
+                    <p className="truncate text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      {c.role === 'teacher' ? 'Giáo viên' : 'Học viên'}
+                    </p>
+                  </div>
+                  {c.unread_count ? (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                      {c.unread_count}
+                    </span>
+                  ) : null}
                 </div>
               </button>
             ))

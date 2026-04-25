@@ -14,40 +14,37 @@ export async function GET(req: NextRequest) {
     if (!token) return NextResponse.json({ success: false }, { status: 401 });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
-    const { userId, role } = decoded;
+    const { userId } = decoded;
 
-    let sql = "";
-    const params = [userId];
-
-    if (role === "student") {
-      // Học sinh: Lấy danh sách giáo viên dạy lớp mình + các bạn cùng lớp
-      sql = `
-        (SELECT DISTINCT u.id, u.name, u.email, u.role
-         FROM users u
-         JOIN class_teachers ct ON u.id = ct.user_id
-         JOIN class_members cm ON ct.class_id = cm.class_id
-         WHERE cm.user_id = ? AND u.role = 'teacher')
+    // Lấy tất cả liên hệ: 
+    // - Những người trong cùng lớp (cả giáo viên và học sinh)
+    // - Những người đã từng nhắn tin (gửi hoặc nhận)
+    // - Kèm theo số tin nhắn chưa đọc và thời gian tin nhắn mới nhất để hiển thị
+    
+    const sql = `
+      SELECT 
+        u.id, u.name, u.email, u.role,
+        (SELECT COUNT(*) FROM messages m WHERE m.sender_id = u.id AND m.receiver_id = ? AND m.is_read = 0) as unread_count,
+        (SELECT MAX(created_at) FROM messages m WHERE (m.sender_id = u.id AND m.receiver_id = ?) OR (m.receiver_id = u.id AND m.sender_id = ?)) as last_message_time
+      FROM users u
+      WHERE u.id IN (
+        SELECT cm.user_id FROM class_members cm WHERE cm.class_id IN (SELECT class_id FROM class_members WHERE user_id = ?)
         UNION
-        (SELECT DISTINCT u.id, u.name, u.email, u.role
-         FROM users u
-         JOIN class_members cm_target ON u.id = cm_target.user_id
-         JOIN class_members cm_me ON cm_target.class_id = cm_me.class_id
-         WHERE cm_me.user_id = ? AND u.id != ?)
-      `;
-      params.push(userId, userId); // Thêm params cho phần UNION
-    } else if (role === "teacher") {
-      // Giáo viên: Lấy danh sách học sinh trong các lớp mình dạy
-      sql = `
-        SELECT DISTINCT u.id, u.name, u.email, u.role
-        FROM users u
-        JOIN class_members cm ON u.id = cm.user_id
-        JOIN class_teachers ct ON cm.class_id = ct.class_id
-        WHERE ct.user_id = ? AND u.role = 'student'
-      `;
-    } else {
-      // Admin hoặc khác: Lấy tất cả (đơn giản hoá cho MVP)
-      sql = `SELECT id, name, email, role FROM users WHERE id != ? LIMIT 50`;
-    }
+        SELECT ct.user_id FROM class_teachers ct WHERE ct.class_id IN (SELECT class_id FROM class_members WHERE user_id = ?)
+        UNION
+        SELECT cm.user_id FROM class_members cm WHERE cm.class_id IN (SELECT class_id FROM class_teachers WHERE user_id = ?)
+        UNION
+        SELECT ct.user_id FROM class_teachers ct WHERE ct.class_id IN (SELECT class_id FROM class_teachers WHERE user_id = ?)
+        UNION
+        SELECT sender_id FROM messages WHERE receiver_id = ?
+        UNION
+        SELECT receiver_id FROM messages WHERE sender_id = ?
+      ) AND u.id != ?
+      ORDER BY unread_count DESC, last_message_time DESC, u.name ASC
+    `;
+
+    // params = [userId x 10]
+    const params = Array(10).fill(userId);
 
     const [contacts] = await pool.query<RowDataPacket[]>(sql, params);
 

@@ -4,6 +4,7 @@ const teacherNav: NavItem[] = [
   { href: "/teacher/dashboard", icon: "🏠", label: "Tổng quan"         },
   { href: "/teacher/classes",   icon: "🏫", label: "Lớp học"           },
   { href: "/teacher/progress",  icon: "📊", label: "Tiến độ học viên"  },
+  { href: "/teacher/materials", icon: "📚", label: "Tài liệu học tập"  },
   { href: "/teacher/messages",  icon: "💬", label: "Tin nhắn", badge: 1 },
   { href: "/teacher/profile",   icon: "👤", label: "Hồ sơ"             },
 ];
