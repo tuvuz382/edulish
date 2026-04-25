@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
 // GET /api/admin/classes/[id]/members
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const classId = params.id;
+    const { id: classId } = await params;
     // Get students
     const [students] = await pool.query(`
       SELECT u.id, u.name, u.email, u.role
@@ -29,9 +29,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 }
 
 // POST /api/admin/classes/[id]/members
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const classId = params.id;
+    const { id: classId } = await params;
     const { user_id, role } = await req.json();
 
     if (!user_id || !role) {
@@ -52,9 +52,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 }
 
 // DELETE /api/admin/classes/[id]/members
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const classId = params.id;
+    const { id: classId } = await params;
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
     const role = searchParams.get("role");
